@@ -1,18 +1,16 @@
 "use client";
 
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from "react";
 
 export default function Workbook() {
   const [page, setPage] = useState(0);
   const pages = [
-    { id: 'cover', title: 'Sampul' },
-    { id: 'trace', title: 'Tracing & Penilaian' },
-    { id: 'match-food', title: 'Pasangkan Hewan & Makanan' },
-    { id: 'shape', title: 'Cocokkan Bentuk' },
-    { id: 'shadow', title: 'Temukan Bayangan' },
-    { id: 'sizes', title: 'Besar & Kecil' },
+    { id: "cover", title: "Sampul" },
+    { id: "trace", title: "Tracing & Penilaian" },
+    { id: "match-food", title: "Pasangkan Hewan & Makanan" },
+    { id: "shape", title: "Cocokkan Bentuk" },
+    { id: "shadow", title: "Temukan Bayangan" },
+    { id: "sizes", title: "Besar & Kecil" },
   ];
 
   return (
@@ -27,7 +25,9 @@ export default function Workbook() {
             >
               ←
             </button>
-            <div className="text-sm text-gray-600">Halaman {page + 1} / {pages.length}</div>
+            <div className="text-sm text-gray-600">
+              Halaman {page + 1} / {pages.length}
+            </div>
             <button
               className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-sm"
               onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
@@ -47,7 +47,9 @@ export default function Workbook() {
         </main>
 
         <footer className="p-4 border-t flex items-center justify-between">
-          <div className="text-sm text-gray-600">Dirancang ramah anak: target sentuh besar, warna lembut, instruksi singkat.</div>
+          <div className="text-sm text-gray-600">
+            Dirancang ramah anak: target sentuh besar, warna lembut, instruksi singkat.
+          </div>
           <div className="flex gap-2">
             <button
               className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm"
@@ -74,7 +76,10 @@ function Cover() {
       <div className="inline-block p-8 rounded-xl bg-gradient-to-br from-pink-50 to-yellow-50 shadow-md">
         <div className="text-7xl">📘</div>
         <h2 className="text-3xl font-extrabold mt-4">Workbook Ceria</h2>
-        <p className="mt-3 text-gray-700">Aktivitas menarik untuk anak usia 2 tahun — tracing, cocok bentuk, pasang gambar, dan lain-lain.</p>
+        <p className="mt-3 text-gray-700">
+          Aktivitas menarik untuk anak usia 2 tahun — tracing, cocok bentuk,
+          pasang gambar, dan lain-lain.
+        </p>
       </div>
     </section>
   );
@@ -87,14 +92,14 @@ function TracingWithScoring() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [score, setScore] = useState<number | null>(null);
 
-  function pointerDown(e: React.PointerEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) {
+  function pointerDown(e: React.PointerEvent<SVGSVGElement>) {
     e.preventDefault();
     setIsDrawing(true);
     const p = getPointer(e);
     setDrawingPoints((s) => [...s, p]);
   }
 
-  function pointerMove(e: React.PointerEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) {
+  function pointerMove(e: React.PointerEvent<SVGSVGElement>) {
     if (!isDrawing) return;
     const p = getPointer(e);
     setDrawingPoints((s) => [...s, p]);
@@ -104,12 +109,10 @@ function TracingWithScoring() {
     setIsDrawing(false);
   }
 
-  function getPointer(e: React.PointerEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) {
+  function getPointer(e: React.PointerEvent<SVGSVGElement>) {
     if (!svgPathRef.current) return { x: 0, y: 0 };
     const rect = svgPathRef.current.getBoundingClientRect();
-    const clientX = "touches" in e ? e.touches[0].clientX : (e as React.PointerEvent).clientX;
-    const clientY = "touches" in e ? e.touches[0].clientY : (e as React.PointerEvent).clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
   function computeScore() {
@@ -154,20 +157,19 @@ function TracingWithScoring() {
 
   return (
     <section id="tracing-page-root">
-      <h3 className="text-xl font-semibold mb-4">Ayo bantu 🐱 sampai rumahnya (Tracing)</h3>
+      <h3 className="text-xl font-semibold mb-4">
+        Ayo bantu 🐱 sampai rumahnya (Tracing)
+      </h3>
       <div className="grid md:grid-cols-2 gap-6">
         <div className="p-4 border rounded-lg bg-slate-50 relative" style={{ minHeight: 420 }}>
           <svg
             ref={svgPathRef}
             className="w-full h-full"
             viewBox="0 0 600 420"
-            onMouseDown={pointerDown}
-            onMouseMove={pointerMove}
-            onMouseUp={pointerUp}
-            onMouseLeave={pointerUp}
-            onTouchStart={pointerDown}
-            onTouchMove={pointerMove}
-            onTouchEnd={pointerUp}
+            onPointerDown={pointerDown}
+            onPointerMove={pointerMove}
+            onPointerUp={pointerUp}
+            onPointerLeave={pointerUp}
           >
             <path
               id="guide-path"
@@ -181,7 +183,7 @@ function TracingWithScoring() {
 
             {drawingPoints.length > 0 && (
               <polyline
-                points={drawingPoints.map((p) => `${p.x},${p.y}`).join(' ')}
+                points={drawingPoints.map((p) => `${p.x},${p.y}`).join(" ")}
                 stroke="#2b6cb0"
                 strokeWidth={12}
                 strokeLinecap="round"
@@ -191,14 +193,27 @@ function TracingWithScoring() {
               />
             )}
 
-            <text x="10" y="380" fontSize="64">🐱</text>
-            <text x="520" y="330" fontSize="48">🏠</text>
+            <text x="10" y="380" fontSize="64">
+              🐱
+            </text>
+            <text x="520" y="330" fontSize="48">
+              🏠
+            </text>
           </svg>
 
           <div className="mt-3 flex gap-2 absolute left-4 bottom-4">
-            <button className="px-3 py-2 rounded bg-red-400 text-white" onClick={clearCanvas}>Ulangi</button>
-            <button className="px-3 py-2 rounded bg-green-500 text-white" onClick={() => computeScore()}>Periksa</button>
-            <button className="px-3 py-2 rounded bg-yellow-500 text-white" onClick={() => exportPDF()}>Simpan PDF</button>
+            <button
+              className="px-3 py-2 rounded bg-red-400 text-white"
+              onClick={clearCanvas}
+            >
+              Ulangi
+            </button>
+            <button
+              className="px-3 py-2 rounded bg-green-500 text-white"
+              onClick={() => computeScore()}
+            >
+              Periksa
+            </button>
           </div>
         </div>
 
@@ -206,10 +221,19 @@ function TracingWithScoring() {
           <div className="text-7xl">🐱</div>
           <div className="mt-4 text-lg font-medium">Ayo ikuti garisnya!</div>
           <div className="mt-6 text-center">
-            <div className="text-sm text-gray-600">Skor: {score === null ? '-' : `${score}%`}</div>
-            <div className="mt-3 text-3xl">{Array.from({ length: 3 }).map((_, i) => (
-              <span key={i} className={i < starsFromPercent(score) ? 'opacity-100' : 'opacity-30'}>⭐</span>
-            ))}</div>
+            <div className="text-sm text-gray-600">
+              Skor: {score === null ? "-" : `${score}%`}
+            </div>
+            <div className="mt-3 text-3xl">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <span
+                  key={i}
+                  className={i < starsFromPercent(score) ? "opacity-100" : "opacity-30"}
+                >
+                  ⭐
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
