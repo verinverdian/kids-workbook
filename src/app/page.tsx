@@ -274,7 +274,9 @@ function MatchFood() {
                 onDragOver={onDragOver}
                 className="w-24 h-16 border-dashed border-2 border-gray-300 rounded flex items-center justify-center bg-white text-3xl"
               >
-                {dropped[p.id] ? pairs.find(x => x.id === dropped[p.id]).food : '—'}
+                {dropped[p.id]
+                  ? pairs.find(x => x.id === dropped[p.id])?.food ?? "❓"
+                  : "—"}
               </div>
             </div>
           ))}
