@@ -85,35 +85,50 @@ function Cover() {
   );
 }
 
-// ------------------- Tracing with scoring -------------------
+// ------------------- Tracing with scoring (smooth) -------------------
 function TracingWithScoring() {
   const svgPathRef = useRef<SVGSVGElement | null>(null);
+  const pointsRef = useRef<{ x: number; y: number }[]>([]);
   const [drawingPoints, setDrawingPoints] = useState<{ x: number; y: number }[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [score, setScore] = useState<number | null>(null);
 
-  function pointerDown(e: React.PointerEvent<SVGSVGElement>) {
+  function pointerDown(e: React.PointerEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) {
     e.preventDefault();
     setIsDrawing(true);
     const p = getPointer(e);
-    setDrawingPoints((s) => [...s, p]);
+    pointsRef.current = [p];
+    setDrawingPoints([p]);
   }
 
-  function pointerMove(e: React.PointerEvent<SVGSVGElement>) {
+  function pointerMove(e: React.PointerEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) {
     if (!isDrawing) return;
     const p = getPointer(e);
-    setDrawingPoints((s) => [...s, p]);
+    pointsRef.current.push(p);
   }
 
   function pointerUp() {
     setIsDrawing(false);
   }
 
-  function getPointer(e: React.PointerEvent<SVGSVGElement>) {
+  function getPointer(e: React.PointerEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) {
     if (!svgPathRef.current) return { x: 0, y: 0 };
     const rect = svgPathRef.current.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const clientX = "touches" in e ? e.touches[0].clientX : (e as React.PointerEvent).clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : (e as React.PointerEvent).clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
   }
+
+  // Loop render pakai requestAnimationFrame → smooth
+  useEffect(() => {
+    let frame: number;
+    const loop = () => {
+      setDrawingPoints([...pointsRef.current]);
+      frame = requestAnimationFrame(loop);
+    };
+    frame = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   function computeScore() {
     const pathEl = document.getElementById("guide-path") as SVGPathElement | null;
@@ -126,9 +141,9 @@ function TracingWithScoring() {
     for (let i = 0; i < samples; i++) {
       const pt = pathEl.getPointAtLength((i / (samples - 1)) * totalLength);
       let matched = false;
-      for (let j = 0; j < drawingPoints.length; j++) {
-        const dx = drawingPoints[j].x - pt.x;
-        const dy = drawingPoints[j].y - pt.y;
+      for (let j = 0; j < pointsRef.current.length; j++) {
+        const dx = pointsRef.current[j].x - pt.x;
+        const dy = pointsRef.current[j].y - pt.y;
         if (dx * dx + dy * dy <= threshold * threshold) {
           matched = true;
           break;
@@ -143,6 +158,7 @@ function TracingWithScoring() {
   }
 
   function clearCanvas() {
+    pointsRef.current = [];
     setDrawingPoints([]);
     setScore(null);
   }
@@ -157,9 +173,7 @@ function TracingWithScoring() {
 
   return (
     <section id="tracing-page-root">
-      <h3 className="text-xl font-semibold mb-4">
-        Ayo bantu 🐱 sampai rumahnya (Tracing)
-      </h3>
+      <h3 className="text-xl font-semibold mb-4">Ayo bantu 🐱 sampai rumahnya (Tracing)</h3>
       <div className="grid md:grid-cols-2 gap-6">
         <div className="p-4 border rounded-lg bg-slate-50 relative" style={{ minHeight: 420 }}>
           <svg
@@ -168,9 +182,13 @@ function TracingWithScoring() {
             viewBox="0 0 600 420"
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}
-            onPointerUp={pointerUp}
-            onPointerLeave={pointerUp}
+            onMouseUp={pointerUp}
+            onMouseLeave={pointerUp}
+            onTouchStart={pointerDown}
+            onTouchMove={pointerMove}
+            onTouchEnd={pointerUp}
           >
+            {/* Jalur panduan */}
             <path
               id="guide-path"
               d="M40 60 C160 40, 260 140, 360 120 C460 100, 520 200, 560 200"
@@ -181,9 +199,10 @@ function TracingWithScoring() {
               strokeLinecap="round"
             />
 
+            {/* Coretan anak */}
             {drawingPoints.length > 0 && (
               <polyline
-                points={drawingPoints.map((p) => `${p.x},${p.y}`).join(" ")}
+                points={drawingPoints.map((p) => `${p.x},${p.y}`).join(' ')}
                 stroke="#2b6cb0"
                 strokeWidth={12}
                 strokeLinecap="round"
@@ -193,27 +212,13 @@ function TracingWithScoring() {
               />
             )}
 
-            <text x="10" y="380" fontSize="64">
-              🐱
-            </text>
-            <text x="520" y="330" fontSize="48">
-              🏠
-            </text>
+            <text x="10" y="380" fontSize="64">🐱</text>
+            <text x="520" y="330" fontSize="48">🏠</text>
           </svg>
 
           <div className="mt-3 flex gap-2 absolute left-4 bottom-4">
-            <button
-              className="px-3 py-2 rounded bg-red-400 text-white"
-              onClick={clearCanvas}
-            >
-              Ulangi
-            </button>
-            <button
-              className="px-3 py-2 rounded bg-green-500 text-white"
-              onClick={() => computeScore()}
-            >
-              Periksa
-            </button>
+            <button className="px-3 py-2 rounded bg-red-400 text-white" onClick={clearCanvas}>Ulangi</button>
+            <button className="px-3 py-2 rounded bg-green-500 text-white" onClick={computeScore}>Periksa</button>
           </div>
         </div>
 
@@ -221,17 +226,10 @@ function TracingWithScoring() {
           <div className="text-7xl">🐱</div>
           <div className="mt-4 text-lg font-medium">Ayo ikuti garisnya!</div>
           <div className="mt-6 text-center">
-            <div className="text-sm text-gray-600">
-              Skor: {score === null ? "-" : `${score}%`}
-            </div>
+            <div className="text-sm text-gray-600">Skor: {score === null ? '-' : `${score}%`}</div>
             <div className="mt-3 text-3xl">
               {Array.from({ length: 3 }).map((_, i) => (
-                <span
-                  key={i}
-                  className={i < starsFromPercent(score) ? "opacity-100" : "opacity-30"}
-                >
-                  ⭐
-                </span>
+                <span key={i} className={i < starsFromPercent(score) ? 'opacity-100' : 'opacity-30'}>⭐</span>
               ))}
             </div>
           </div>
@@ -441,7 +439,6 @@ function Shadows() {
   );
 }
 
-
 // ------------------- Sizes -------------------
 function Sizes() {
   const bigAnimals = ["🐘", "🦒", "🐳", "🦏", "🐂", "🐫"];
@@ -449,17 +446,23 @@ function Sizes() {
 
   const [big, setBig] = useState("🐘");
   const [small, setSmall] = useState("🐭");
-  const [answer, setAnswer] = useState<string | null>(null);
+  const [step, setStep] = useState<"besar" | "kecil">("besar");
+  const [answered, setAnswered] = useState<{ besar: boolean; kecil: boolean }>({ besar: false, kecil: false });
 
   function newRound() {
     setBig(bigAnimals[Math.floor(Math.random() * bigAnimals.length)]);
     setSmall(smallAnimals[Math.floor(Math.random() * smallAnimals.length)]);
-    setAnswer(null);
+    setStep("besar");
+    setAnswered({ besar: false, kecil: false });
   }
 
-  function choose(option: string) {
-    setAnswer(option);
-    setTimeout(() => setAnswer(null), 2000);
+  function choose(option: "besar" | "kecil") {
+    if (option === "besar" && step === "besar") {
+      setAnswered((s) => ({ ...s, besar: true }));
+      setStep("kecil");
+    } else if (option === "kecil" && step === "kecil") {
+      setAnswered((s) => ({ ...s, kecil: true }));
+    }
   }
 
   useEffect(() => {
@@ -478,18 +481,25 @@ function Sizes() {
             {small}
           </button>
         </div>
-        <p className="text-lg font-medium">Mana yang besar? Mana yang kecil?</p>
 
-        {answer && (
-          <div className="mt-4 text-xl font-bold">
-            {answer === "besar" && <span className="text-green-600">{big} Itu BESAR!</span>}
-            {answer === "kecil" && <span className="text-blue-600">{small} Itu KECIL!</span>}
-          </div>
+        {/* Pertanyaan sesuai step */}
+        {!answered.besar && <p className="text-lg font-medium">👉 Mana yang BESAR?</p>}
+        {answered.besar && !answered.kecil && <p className="text-lg font-medium">👉 Bagus! Sekarang, mana yang KECIL?</p>}
+
+        {/* Feedback */}
+        <div className="mt-4 text-xl font-bold">
+          {answered.besar && <div className="text-green-600">{big} Itu BESAR! ✅</div>}
+          {answered.kecil && <div className="text-blue-600">{small} Itu KECIL! ✅</div>}
+        </div>
+
+        {/* Pujian setelah selesai */}
+        {answered.besar && answered.kecil && (
+          <div className="mt-4 text-2xl">🎉 Hebat sekali! ⭐⭐⭐</div>
         )}
 
         <button
           onClick={newRound}
-          className="mt-4 px-4 py-2 rounded-lg bg-purple-500 text-white text-sm"
+          className="mt-6 px-4 py-2 rounded-lg bg-purple-500 text-white text-sm"
         >
           Ulangi
         </button>
