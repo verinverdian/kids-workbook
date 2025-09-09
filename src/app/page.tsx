@@ -82,45 +82,43 @@ function Cover() {
 
 // ------------------- Tracing with scoring -------------------
 function TracingWithScoring() {
-  const svgPathRef = useRef(null);
-  const [drawingPoints, setDrawingPoints] = useState([]);
+  const svgPathRef = useRef<SVGSVGElement | null>(null);
+  const [drawingPoints, setDrawingPoints] = useState<{ x: number; y: number }[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [score, setScore] = useState(null);
+  const [score, setScore] = useState<number | null>(null);
 
-  useEffect(() => {
-    setDrawingPoints([]);
-    setScore(null);
-  }, []);
-
-  function pointerDown(e) {
+  function pointerDown(e: React.PointerEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) {
     e.preventDefault();
     setIsDrawing(true);
     const p = getPointer(e);
     setDrawingPoints((s) => [...s, p]);
   }
-  function pointerMove(e) {
+
+  function pointerMove(e: React.PointerEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) {
     if (!isDrawing) return;
     const p = getPointer(e);
     setDrawingPoints((s) => [...s, p]);
   }
+
   function pointerUp() {
     setIsDrawing(false);
   }
 
-  function getPointer(e) {
+  function getPointer(e: React.PointerEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) {
+    if (!svgPathRef.current) return { x: 0, y: 0 };
     const rect = svgPathRef.current.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const clientX = "touches" in e ? e.touches[0].clientX : (e as React.PointerEvent).clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : (e as React.PointerEvent).clientY;
     return { x: clientX - rect.left, y: clientY - rect.top };
   }
 
   function computeScore() {
-    const pathEl = document.getElementById('guide-path');
+    const pathEl = document.getElementById("guide-path") as SVGPathElement | null;
     if (!pathEl) return;
     const totalLength = pathEl.getTotalLength();
     const samples = 80;
     const threshold = 28;
-    const hits = [];
+    const hits: boolean[] = [];
 
     for (let i = 0; i < samples; i++) {
       const pt = pathEl.getPointAtLength((i / (samples - 1)) * totalLength);
@@ -146,23 +144,12 @@ function TracingWithScoring() {
     setScore(null);
   }
 
-  function starsFromPercent(pct) {
+  function starsFromPercent(pct: number | null) {
     if (pct === null) return 0;
     if (pct >= 80) return 3;
     if (pct >= 50) return 2;
     if (pct >= 25) return 1;
     return 0;
-  }
-
-  async function exportPDF() {
-    const html2canvas = (await import('html2canvas')).default;
-    const jsPDF = (await import('jspdf')).jsPDF;
-    const el = document.getElementById('tracing-page-root');
-    const canvas = await html2canvas(el, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [canvas.width, canvas.height] });
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-    pdf.save('tracing-page.pdf');
   }
 
   return (
@@ -233,18 +220,22 @@ function TracingWithScoring() {
 // ------------------- Matching -------------------
 function MatchFood() {
   const pairs = [
-    { id: 'dog', animal: '🐶', food: '🦴' },
-    { id: 'cat', animal: '🐱', food: '🐟' },
-    { id: 'duck', animal: '🦆', food: '🍞' },
+    { id: "dog", animal: "🐶", food: "🦴" },
+    { id: "cat", animal: "🐱", food: "🐟" },
+    { id: "duck", animal: "🦆", food: "🍞" },
   ];
-  const [dropped, setDropped] = useState({});
+  const [dropped, setDropped] = useState<Record<string, string>>({});
 
-  function onDragStart(e, id) { e.dataTransfer.setData('text/plain', id); }
-  function onDrop(e, targetId) {
-    const id = e.dataTransfer.getData('text/plain');
+  function onDragStart(e: React.DragEvent<HTMLDivElement>, id: string) {
+    e.dataTransfer.setData("text/plain", id);
+  }
+  function onDrop(e: React.DragEvent<HTMLDivElement>, targetId: string) {
+    const id = e.dataTransfer.getData("text/plain");
     setDropped((s) => ({ ...s, [targetId]: id }));
   }
-  function onDragOver(e) { e.preventDefault(); }
+  function onDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+  }
 
   return (
     <section>
@@ -286,26 +277,64 @@ function MatchFood() {
 
 // ------------------- Shapes -------------------
 function Shapes() {
-  const shapes = [
-    { id: 'circle', label: 'Lingkaran', emoji: '⚪' },
-    { id: 'square', label: 'Kotak', emoji: '🟦' },
-    { id: 'triangle', label: 'Segitiga', emoji: '🔺' },
-    { id: 'rect', label: 'Persegi Panjang', emoji: '🟨' },
+  const pairs = [
+    { id: "circle", shape: "⚪", label: "Lingkaran", match: "⚽" },
+    { id: "square", shape: "🟦", label: "Kotak", match: "📒" },
+    { id: "triangle", shape: "🔺", label: "Segitiga", match: "🍕" },
+    { id: "rect", shape: "🟨", label: "Persegi Panjang", match: "🛏️" },
   ];
+
+  const [selectedShape, setSelectedShape] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, boolean>>({});
+
+  function handleChoice(shapeId: string, targetId: string) {
+    setAnswers((s) => ({ ...s, [shapeId]: shapeId === targetId }));
+    setSelectedShape(null);
+  }
+
   return (
     <section>
       <h3 className="text-xl font-semibold mb-4">Mencocokkan Bentuk</h3>
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="p-4 border rounded-lg flex items-center justify-center bg-green-50">
-          <div className="grid grid-cols-2 gap-6">
-            {shapes.map((s) => (
-              <div key={s.id} className="w-36 h-36 rounded-lg bg-white flex flex-col items-center justify-center shadow-sm text-6xl">
-                {s.emoji}
-                <div className="text-sm mt-2">{s.label}</div>
-              </div>
+
+        {/* Kolom bentuk */}
+        <div className="p-4 border rounded-lg bg-green-50">
+          <div className="grid grid-cols-2 gap-4">
+            {pairs.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedShape(p.id)}
+                className={`w-28 h-28 rounded-lg flex flex-col items-center justify-center text-5xl border-2 
+                  ${selectedShape === p.id ? 'border-blue-500' : 'border-transparent'} 
+                  ${answers[p.id] === true ? 'bg-green-200' : answers[p.id] === false ? 'bg-red-200' : 'bg-white'}`}
+              >
+                {p.shape}
+                <span className="text-xs mt-1">{p.label}</span>
+              </button>
             ))}
           </div>
         </div>
+
+        {/* Kolom benda nyata */}
+        <div className="p-4 border rounded-lg bg-yellow-50">
+          <div className="grid grid-cols-2 gap-4">
+            {pairs.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => selectedShape && handleChoice(selectedShape, p.id)}
+                className="w-28 h-28 rounded-lg bg-white shadow flex items-center justify-center text-5xl"
+              >
+                {p.match}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 text-center">
+        {Object.values(answers).filter(Boolean).length === pairs.length && (
+          <div className="text-3xl mt-2">🎉 Hebat sekali! ⭐⭐⭐</div>
+        )}
       </div>
     </section>
   );
@@ -314,19 +343,70 @@ function Shapes() {
 // ------------------- Shadows -------------------
 function Shadows() {
   const items = [
-    { id: 'rhino', emoji: '🦏', shadow: '⬛' },
-    { id: 'car', emoji: '🚗', shadow: '⬛' },
-    { id: 'book', emoji: '📚', shadow: '⬛' },
+    { id: "rhino", emoji: "🦏" },
+    { id: "car", emoji: "🚗" },
+    { id: "book", emoji: "📚" },
   ];
+  const [matched, setMatched] = useState<Record<string, string>>({});
+
+  function onDragStart(e: React.DragEvent<HTMLDivElement>, id: string) {
+    e.dataTransfer.setData("text/plain", id);
+  }
+
+  function onDrop(e: React.DragEvent<HTMLDivElement>, targetId: string) {
+    const draggedId = e.dataTransfer.getData("text/plain");
+    if (draggedId === targetId) {
+      setMatched((prev) => ({ ...prev, [targetId]: draggedId }));
+    }
+  }
+
+  function onDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+  }
+
+  function resetGame() {
+    setMatched({});
+  }
+
   return (
     <section>
       <h3 className="text-xl font-semibold mb-4">Temukan Bayangan</h3>
       <div className="grid md:grid-cols-2 gap-6">
+        {/* Bayangan */}
         <div className="p-4 border rounded-lg bg-amber-50">
           {items.map((it) => (
-            <div key={it.id} className="flex items-center gap-6 mb-4 text-6xl">
-              <div>{it.emoji}</div>
-              <div className="opacity-60">{it.shadow}</div>
+            <div
+              key={it.id}
+              onDrop={(e) => onDrop(e, it.id)}
+              onDragOver={onDragOver}
+              className="flex items-center justify-center mb-6 text-6xl p-3 border-2 border-dashed border-gray-300 rounded-lg bg-white min-h-[80px]"
+            >
+              {matched[it.id] ? (
+                <span>{items.find((x) => x.id === matched[it.id])?.emoji}</span>
+              ) : (
+                <span className="text-gray-400 opacity-40">{it.emoji}</span> // bayangan
+              )}
+            </div>
+          ))}
+
+          <button
+            onClick={resetGame}
+            className="mt-4 px-4 py-2 rounded-lg bg-red-400 text-white text-sm"
+          >
+            Ulangi
+          </button>
+        </div>
+
+        {/* Gambar yang bisa diseret */}
+        <div className="p-4 border rounded-lg bg-white flex gap-6 justify-center items-center text-6xl">
+          {items.map((it) => (
+            <div
+              key={it.id}
+              draggable
+              onDragStart={(e) => onDragStart(e, it.id)}
+              className="cursor-grab"
+            >
+              {it.emoji}
             </div>
           ))}
         </div>
@@ -335,19 +415,58 @@ function Shadows() {
   );
 }
 
+
 // ------------------- Sizes -------------------
 function Sizes() {
+  const bigAnimals = ["🐘", "🦒", "🐳", "🦏", "🐂", "🐫"];
+  const smallAnimals = ["🐭", "🐹", "🐇", "🐥", "🐸", "🐢"];
+
+  const [big, setBig] = useState("🐘");
+  const [small, setSmall] = useState("🐭");
+  const [answer, setAnswer] = useState<string | null>(null);
+
+  function newRound() {
+    setBig(bigAnimals[Math.floor(Math.random() * bigAnimals.length)]);
+    setSmall(smallAnimals[Math.floor(Math.random() * smallAnimals.length)]);
+    setAnswer(null);
+  }
+
+  function choose(option: string) {
+    setAnswer(option);
+    setTimeout(() => setAnswer(null), 2000);
+  }
+
+  useEffect(() => {
+    newRound();
+  }, []);
+
   return (
     <section>
       <h3 className="text-xl font-semibold mb-4">Membedakan Besar & Kecil</h3>
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="p-4 border rounded-lg bg-lime-50 flex flex-col gap-4 items-center">
-          <div className="flex items-center gap-6 text-7xl">
-            <div>🐘</div>
-            <div className="text-4xl">🐭</div>
-          </div>
-          <div className="text-lg">Mana yang besar? Mana yang kecil?</div>
+      <div className="p-6 rounded-lg bg-green-50 text-center">
+        <div className="flex justify-center gap-12 text-7xl mb-6">
+          <button onClick={() => choose("besar")} className="hover:scale-110 transition-transform">
+            {big}
+          </button>
+          <button onClick={() => choose("kecil")} className="hover:scale-110 transition-transform">
+            {small}
+          </button>
         </div>
+        <p className="text-lg font-medium">Mana yang besar? Mana yang kecil?</p>
+
+        {answer && (
+          <div className="mt-4 text-xl font-bold">
+            {answer === "besar" && <span className="text-green-600">{big} Itu BESAR!</span>}
+            {answer === "kecil" && <span className="text-blue-600">{small} Itu KECIL!</span>}
+          </div>
+        )}
+
+        <button
+          onClick={newRound}
+          className="mt-4 px-4 py-2 rounded-lg bg-purple-500 text-white text-sm"
+        >
+          Ulangi
+        </button>
       </div>
     </section>
   );
